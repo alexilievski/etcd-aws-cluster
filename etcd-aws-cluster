@@ -12,6 +12,8 @@ fi
 client_port=${ETCD_CLIENT_PORT:-2379}
 server_port=${ETCD_SERVER_PORT:-2380}
 
+echo "using the following curl opts: ${ETCD_CURLOPTS}"
+
 # ETCD API https://coreos.com/etcd/docs/2.0.11/other_apis.html
 add_ok=201
 already_added=409
@@ -77,20 +79,24 @@ etcd_existing_peer_names=
 etcd_good_member_url=
 
 for url in $etcd_peer_urls; do
+    echo "checking peer ${url}"
     case "$url" in
         # If we're in proxy mode this is an error, but unlikely to happen?
         *$ec2_instance_ip*) continue;;
     esac
 
     etcd_members=$(curl $ETCD_CURLOPTS -f -s $url/v2/members)
+    echo "members retrieved: ${etcd_members}"
 
     if [[ $? == 0 && $etcd_members ]]; then
         etcd_good_member_url="$url"
-		echo "etcd_members=$etcd_members"
+        echo "etcd_members=$etcd_members"
         etcd_existing_peer_urls=$(echo "$etcd_members" | jq --raw-output .[][].peerURLs[0])
-		etcd_existing_peer_names=$(echo "$etcd_members" | jq --raw-output .[][].name)
+        etcd_existing_peer_names=$(echo "$etcd_members" | jq --raw-output .[][].name)
 	break
     fi
+
+    echo "no existing members to use"
 done
 
 echo "etcd_good_member_url=$etcd_good_member_url"
